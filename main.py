@@ -10,6 +10,7 @@ from torch.utils.data import ConcatDataset, DataLoader, Subset, Dataset
 from torchvision.datasets import DatasetFolder, VisionDataset
 from tqdm.auto import tqdm
 import random
+import DatasetProcessing
 
 
 myseed = 9999   # random seed for reproducibility
@@ -33,9 +34,32 @@ test_tfm = transforms.Compose([transforms.Resize((128, 128)),
 train_tfm = transforms.Compose([transforms.Resize((128, 128)),
                                 transforms.ToTensor()])
 
+# config
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
-class FoodDataset(Dataset):
-    def __init__(self, path, tfm=test_tfm, files = None):
-        super(FoodDataset).__init__()
-        self.path = path
-        self.files = sorted([os.path.join(path,x)]) for x in
+model = Classifier().to(device)
+
+batch_size = 64
+
+n_epochs = 8
+
+patience = 5
+
+criterion = nn.CrossEntropyLoss()
+
+optimizer = torch.optim.Adam(model. parameters(), lr=0.00025, weight_decay=1e-5)
+
+
+train_set = FoodDataset("./train", tfm=train_tfm)
+train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
+test_set = FoodDataset("./test", tfm=test_tfm)
+test_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
+valid_set = FoodDataset("./valid", tfm=test_tfm)
+valid_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
+
+
+stale = 0
+best_acc = 0
+
+for epoch in range(n_epochs):
+    model.train()
