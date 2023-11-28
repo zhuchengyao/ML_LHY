@@ -1,6 +1,8 @@
+from torch.utils.data import ConcatDataset, DataLoader, Subset, Dataset
+
 # rewrite the Dataset class
 class FoodDataset(Dataset):
-    def __init__(self, path, tfm=test_tfm, files = None):
+    def __init__(self, path, tfm, files = None):
         super(FoodDataset).__init__()
         self.path = path
         self.files = sorted([os.path.join(path,x) for x in os.listdir(path) if x.endswith(".jpg")])

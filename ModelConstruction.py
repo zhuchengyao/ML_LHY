@@ -1,4 +1,4 @@
-class Classifier(nn,Module):
+class Classifier(nn.Module):
     def __init__(self):
         super(Classifier, self).__init__()
         self.cnn = nn.Sequential(
