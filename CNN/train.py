@@ -134,15 +134,15 @@ class Classifier(nn.Module):
         return self.fc(out)
 
 
-train_val_array = np.concatenate((train_array, val_array), axis=0)  # 合并训练集和验证集的X
-train_val_len = np.concatenate((train_len, val_len), axis=0)  # 合并训练集和验证集的Y
-train_val_set = ImgDataset(train_val_array, train_val_len, train_transform)  # 实例化
-train_val_loader = DataLoader(train_val_set, batch_size=batch_size, shuffle=True)  # 载入数据
+train_val_array = np.concatenate((train_array, val_array), axis=0)              # 合并训练集和验证集的X
+train_val_len = np.concatenate((train_len, val_len), axis=0)                    # 合并训练集和验证集的Y
+train_val_set = ImgDataset(train_val_array, train_val_len, train_transform)             # 实例化
+train_val_loader = DataLoader(train_val_set, batch_size=batch_size, shuffle=True)       # 载入数据
 
-model_best = Classifier().cuda()  # 此处的Classifier应该是你自己调整后，网络结构最好的网络
-loss = nn.CrossEntropyLoss()  # 损失函数
-optimizer = torch.optim.Adam(model_best.parameters(), lr=0.001)  # 优化函数
-num_epoch = 30  # 训练次数
+model_best = Classifier().cuda()                                    # 此处的Classifier应该是你自己调整后，网络结构最好的网络
+loss = nn.CrossEntropyLoss()                                        # 损失函数
+optimizer = torch.optim.Adam(model_best.parameters(), lr=0.001)     # 优化器
+num_epoch = 30                                                      # 训练次数
 
 # 开始训练
 for epoch in range(num_epoch):
