@@ -8,6 +8,7 @@ import pandas as pd
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, Dataset
 import time
+from tqdm import tqdm
 
 
 # 定义读写文件的函数
@@ -37,11 +38,11 @@ test_array = readfile(os.path.join(workspace_dir, "testing"), False)  # 读取�
 print("Size of Testing data = {}".format(len(test_array)))  # 输出测试集数据长度
 
 # 图像增强
-train_transform = transforms.Compose([  # 定义transform为如下一系列行为：
-    transforms.ToPILImage(),  # 转化成PIL图片格式
-    transforms.RandomHorizontalFlip(),  # 随机将图片水平翻转
-    transforms.RandomRotation(15),  # 随机旋转图片
-    transforms.ToTensor(),  # 将图片转化为Tensor，并归一化
+train_transform = transforms.Compose([          # 定义transform为如下一系列行为：
+    transforms.ToPILImage(),                    # 转化成PIL图片格式
+    transforms.RandomHorizontalFlip(),          # 随机将图片水平翻转
+    transforms.RandomRotation(15),              # 随机旋转图片， 这段代码很坑，15是旋转的角度，表明随机在-15到15度之间找一个角度做图片旋转，这段代码会使得图片中很多像素点变成0.
+    transforms.ToTensor(),                      # 将图片转化为Tensor，并归一化
 ])
 
 # 测试集图像处理
@@ -53,11 +54,11 @@ test_transform = transforms.Compose([
 
 # 数据集类处理
 class ImgDataset(Dataset):
-    def __init__(self, data_array, label=None, transform=None):  # data_array就是上面准备好的图片数据的四维数列
+    def __init__(self, data_array, label=None, transform=None):     # data_array就是上面准备好的图片数据的四维数列
         self.data_array = data_array
         self.label = label
         if label is not None:
-            self.label = torch.LongTensor(label)  # 如果有label输入，则把label数据类型转化成tensor格式
+            self.label = torch.LongTensor(label)                    # 如果有label输入，则把label数据类型转化成tensor格式
         self.transform = transform
 
     def __len__(self):
@@ -65,37 +66,38 @@ class ImgDataset(Dataset):
 
     def __getitem__(self, index):
         idx_array = self.data_array[index]
-        if self.transform is not None:  # 判断是否有图像变换
-            idx_array = self.transform(idx_array)  # 有，则取变换后的array
-        if self.label is not None:  # 判断是否有label
+        if self.transform is not None:                  # 判断是否有图像变换
+            idx_array = self.transform(idx_array)       # 有，则取变换后的array
+        if self.label is not None:                      # 判断是否有label
             label = self.label[index]
-            return idx_array, label  # 有，则返回array 和 label
+            return idx_array, label                     # 有，则返回array 和 label
         else:
-            return idx_array  # 无label,返回array
+            return idx_array                            # 无label,返回array
 
 
 # 初始化batch_size
 batch_size = 128
 # 实例化数据集
-train_set = ImgDataset(train_array, train_len, train_transform)     # 用前面定义的子类加载data array， data len，
+train_set = ImgDataset(train_array, train_len, train_transform)  # 用前面定义的子类加载data array， data len，
 # 和图片预处理的过程
 val_set = ImgDataset(val_array, val_len, test_transform)
 # 载入数据集
-train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)   # 用DataLoader加载数据，设定好batch size和是否洗牌
+train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)  # 用DataLoader加载数据，设定好batch size和是否洗牌
 val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
 
-
 neural_num = 64
+
+
 # 建网络模型
 class Classifier(nn.Module):
     def __init__(self):
-        super(Classifier, self).__init__()      # 写自己的模型的时候，一般调用父类nn.Module的构造函数
+        super(Classifier, self).__init__()  # 写自己的模型的时候，一般调用父类nn.Module的构造函数
         # 建立卷积网络层
         self.cnn = nn.Sequential(
-            nn.Conv2d(3, 64, 3, 1, 1),      # 第[0]层 卷积
-            nn.BatchNorm2d(64),                                                            # 第[1]层BatchNorm
-            nn.ReLU(),                                                                     # ReLU激活函数
-            nn.MaxPool2d(2, 2, 0),                                 # 池化
+            nn.Conv2d(3, 64, 3, 1, 1),  # 第[0]层 卷积
+            nn.BatchNorm2d(64),  # 第[1]层BatchNorm
+            nn.ReLU(),  # ReLU激活函数
+            nn.MaxPool2d(2, 2, 0),  # 池化
 
             nn.Conv2d(64, 128, 3, 1, 1),
             nn.BatchNorm2d(128),
@@ -120,29 +122,29 @@ class Classifier(nn.Module):
 
         # 线性全连接网络
         self.fc = nn.Sequential(
-            nn.Linear(512 * 4 * 4, 1024),       # 原本是3通道 128*128的像素， 做了5次pooling，最终像素是4*4的。输出到1024个神经元上
+            nn.Linear(512 * 4 * 4, 1024),           # 原本是3通道 128*128的像素， 做了5次pooling，最终像素是4*4的。输出到1024个神经元上
             nn.ReLU(),
-            nn.Linear(1024, 512),   # 全连接从1024个神经元输出到512个神经元上
+            nn.Linear(1024, 512),       # 全连接从1024个神经元输出到512个神经元上
             nn.ReLU(),
-            nn.Linear(512, 11)      # 从512个神经元输出到11个神经元上
+            nn.Linear(512, 11)          # 从512个神经元输出到11个神经元上
         )
 
     # 前馈，经过cnn-->view-->fc
     def forward(self, x):
         out = self.cnn(x)
-        out = out.view(out.size()[0], -1)       # view(a, b)函数按照
+        out = out.view(out.size()[0], -1)  # view(a, b)函数按照
         return self.fc(out)
 
 
-train_val_array = np.concatenate((train_array, val_array), axis=0)              # 合并训练集和验证集的X
-train_val_len = np.concatenate((train_len, val_len), axis=0)                    # 合并训练集和验证集的Y
-train_val_set = ImgDataset(train_val_array, train_val_len, train_transform)             # 实例化
-train_val_loader = DataLoader(train_val_set, batch_size=batch_size, shuffle=True)       # 载入数据
+train_val_array = np.concatenate((train_array, val_array), axis=0)          # 合并训练集和验证集的X
+train_val_len = np.concatenate((train_len, val_len), axis=0)                # 合并训练集和验证集的Y
+train_val_set = ImgDataset(train_val_array, train_val_len, train_transform)         # 实例化
+train_val_loader = DataLoader(train_val_set, batch_size=batch_size, shuffle=True)   # 载入数据
 
-model_best = Classifier().cuda()                                    # 此处的Classifier应该是你自己调整后，网络结构最好的网络
-loss = nn.CrossEntropyLoss()                                        # 损失函数
-optimizer = torch.optim.Adam(model_best.parameters(), lr=0.001)     # 优化器
-num_epoch = 30                                                      # 训练次数
+model_best = Classifier().cuda()                                                    # 此处的Classifier应该是你自己调整后，网络结构最好的网络
+loss = nn.CrossEntropyLoss()                                                        # 损失函数
+optimizer = torch.optim.Adam(model_best.parameters(), lr=0.001)                     # 优化器
+num_epoch = 30                                                                      # 训练次数
 
 # 开始训练
 for epoch in range(num_epoch):
@@ -151,13 +153,16 @@ for epoch in range(num_epoch):
     train_loss = 0.0
 
     model_best.train()
-    for i, data in enumerate(train_val_loader):
+    for i, data in enumerate(train_val_loader):                 ### 此处写法为官方推荐写法之一。用enumerate读取
+                                                                # dataloader里面的数据，其中i表示目前读取到了第几项， data中含有图片的tensor格式数据和label
+        batch = train_val_loader
+        print(batch)
         optimizer.zero_grad()                                   # 定义优化器
         train_pred = model_best(data[0].cuda())                 # 计算预测值
-        batch_loss = loss(train_pred, data[1].cuda())           # 预测值和真值输入loss function计算损失
+        batch_loss = loss(train_pred, data[1].cuda())           # 预测值和真值输入loss function计算损失，这里的data[1]取的就是label数据
         batch_loss.backward()                                   # 计算梯度
         optimizer.step()                                        # 优化权重
-
+        pre_matrix = np.argmax(train_pred.cpu().data.numpy(), axis=1)
         train_acc += np.sum(np.argmax(train_pred.cpu().data.numpy(), axis=1) == data[1].numpy())
         train_loss += batch_loss.item()
 
