@@ -56,8 +56,18 @@ pe_embedding = nn.Embedding(max_pos_len, model_dim)
 
 pe_embedding.weight = nn.Parameter(pe_embedding_table, requires_grad=False) # 实例化一个embedding, 参数调整为position的参数
 
+src_len = torch.Tensor([2, 8]).to(torch.int32)
 
-src_pos = torch.Tensor([torch.arange(max(src_len))for _ in max_src_sqe_len]).to(torch.int32)
+src_pos = torch.arange(max(src_len))
+src_pos = [torch.unsqueeze(src_pos, 0) for _ in src_len]
+src_pos = torch.cat(src_pos).to(torch.int32)
 
-# src_pe_embedding = pe_embedding(src_embedding)
-print(src_pos)
+src_pe_embedding = pe_embedding(src_pos)
+print(src_pe_embedding)
+
+
+tgt_pos = torch.arange(max(src_len))
+tgt_pos = [torch.unsqueeze(tgt_pos, 0) for _ in src_len]
+tgt_pos = torch.cat(tgt_pos).to(torch.int32)
+tgt_pe_embedding = pe_embedding(tgt_pos)
+print(tgt_pe_embedding)
